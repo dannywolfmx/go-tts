@@ -17,7 +17,10 @@ var hashes = make(map[string]bool)
 
 var c = make(chan player.Player)
 
-type TTS struct{}
+type TTS struct {
+	sync.Mutex
+	player player.Player
+}
 
 func NewTTS() *TTS {
 	return &TTS{}
@@ -25,6 +28,10 @@ func NewTTS() *TTS {
 
 func (t *TTS) Run() {
 	for player := range c {
+		t.Lock()
+		t.player = player
+		t.Unlock()
+
 		player.Play()
 	}
 
@@ -45,8 +52,14 @@ func (t *TTS) Stop() {
 	close(c)
 }
 
+func (t *TTS) Skip() {
+	if t.player != nil {
+		t.player.Skip()
+	}
+}
+
 //Google wants a cache system to don't ban this client, so we need to add it
-func (t *TTS) Play(lang, text string) (player.Player, error) {
+func (t *TTS) Play(lang, text string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	player := player.NewNativePlayer(ctx, cancel)
 
@@ -60,42 +73,41 @@ func (t *TTS) Play(lang, text string) (player.Player, error) {
 			c <- player
 		}()
 
-		return player, nil
+		return nil
 	}
 
 	url := fmt.Sprintf("https://translate.google.com/translate_tts?ie=UTF-8&tl=%s&client=tw-ob&q=%s", lang, url.QueryEscape(text))
 	resp, err := http.Get(url)
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer resp.Body.Close()
 	player.Buff, err = io.ReadAll(resp.Body)
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	file, err := os.Create(hashText)
 	defer file.Close()
 
 	if err != nil {
-		fmt.Println("Entre")
-		return nil, err
+		return err
 	}
 
 	n, err := file.Write(player.Buff)
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if len(player.Buff) != n {
-		return nil, errors.New("error on len buff write")
+		return errors.New("error on len buff write")
 	}
 	go func() {
 		c <- player
 	}()
 
-	return player, nil
+	return nil
 }

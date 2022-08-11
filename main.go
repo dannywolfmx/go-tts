@@ -9,26 +9,41 @@ import (
 
 func main() {
 	myTTS := tts.NewTTS()
-	player, err := myTTS.Play("es", "Hola mundo como stan? Hola mundo como stan? Hola mundo como stan?")
+	myTTS.Skip()
 
-	if err != nil {
-		fmt.Printf("Error %s \n", err)
-	}
-	player2, err := myTTS.Play("es", "Segunda prueba de control, segunda prueba")
-	if err != nil {
-		fmt.Printf("Error %s \n", err)
-	}
+	go func() {
+		err := myTTS.Play("es", "Hola mundo como stan? Hola mundo como stan? Hola mundo como stan?")
+
+		if err != nil {
+			fmt.Printf("Error %s \n", err)
+		}
+
+	}()
+
+	go func() {
+		time.Sleep(1 * time.Second)
+		err := myTTS.Play("es", "Segunda prueba de control, segunda prueba")
+		if err != nil {
+			fmt.Printf("Error %s \n", err)
+		}
+	}()
 
 	go func() {
 		time.Sleep(2 * time.Second)
 		fmt.Println("Skip")
-		player.Skip()
+		myTTS.Skip()
 	}()
 
 	go func() {
-		time.Sleep(7 * time.Second)
+		time.Sleep(3 * time.Second)
 		fmt.Println("Skip")
-		player2.Skip()
+		myTTS.Skip()
+	}()
+
+	go func() {
+		time.Sleep(4 * time.Second)
+		fmt.Println("Skip")
+		myTTS.Skip()
 		myTTS.Stop()
 	}()
 
