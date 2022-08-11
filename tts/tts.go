@@ -34,7 +34,6 @@ func (t *TTS) Run() {
 
 		player.Play()
 	}
-
 }
 
 func (t *TTS) Stop() {
@@ -53,6 +52,8 @@ func (t *TTS) Stop() {
 }
 
 func (t *TTS) Skip() {
+	t.Lock()
+	defer t.Unlock()
 	if t.player != nil {
 		t.player.Skip()
 	}
@@ -64,7 +65,9 @@ func (t *TTS) Play(lang, text string) error {
 	player := player.NewNativePlayer(ctx, cancel)
 
 	hashText := hash(text)
+	t.Lock()
 	hashes[hashText] = true
+	t.Unlock()
 
 	var err error
 	player.Buff, err = os.ReadFile(hashText)

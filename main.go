@@ -8,11 +8,11 @@ import (
 )
 
 func main() {
-	myTTS := tts.NewTTS()
-	myTTS.Skip()
+	tts := tts.NewTTS()
+	tts.Skip()
 
 	go func() {
-		err := myTTS.Play("es", "Hola mundo como stan? Hola mundo como stan? Hola mundo como stan?")
+		err := tts.Play("es", "Hola mundo como stan? Hola mundo como stan? Hola mundo como stan?")
 
 		if err != nil {
 			fmt.Printf("Error %s \n", err)
@@ -22,7 +22,7 @@ func main() {
 
 	go func() {
 		time.Sleep(1 * time.Second)
-		err := myTTS.Play("es", "Segunda prueba de control, segunda prueba")
+		err := tts.Play("es", "Segunda prueba de control, segunda prueba")
 		if err != nil {
 			fmt.Printf("Error %s \n", err)
 		}
@@ -31,21 +31,21 @@ func main() {
 	go func() {
 		time.Sleep(2 * time.Second)
 		fmt.Println("Skip")
-		myTTS.Skip()
+		tts.Skip()
 	}()
 
 	go func() {
 		time.Sleep(3 * time.Second)
 		fmt.Println("Skip")
-		myTTS.Skip()
+		tts.Skip()
 	}()
 
 	go func() {
 		time.Sleep(4 * time.Second)
 		fmt.Println("Skip")
-		myTTS.Skip()
-		myTTS.Stop()
+		tts.Skip()
+		tts.Stop()
 	}()
 
-	myTTS.Run()
+	tts.Run()
 }
