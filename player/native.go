@@ -27,7 +27,6 @@ func NewNativePlayer(ctx context.Context, cancel context.CancelFunc) *Native {
 }
 
 func (n *Native) Play() {
-	defer n.cancel()
 
 	reader := bytes.NewReader(n.Buff)
 
@@ -70,6 +69,8 @@ func (n *Native) Play() {
 			default:
 				if player.IsPlaying() {
 					time.Sleep(time.Millisecond)
+				} else {
+					n.cancel()
 				}
 			}
 		}
