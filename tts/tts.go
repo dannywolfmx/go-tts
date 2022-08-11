@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sync"
 
 	"github.com/dannywolfmx/go-tts/player"
 )
@@ -30,11 +31,17 @@ func (t *TTS) Run() {
 }
 
 func (t *TTS) Stop() {
+	var wg sync.WaitGroup
 	//Delete cache files
 	for key := range hashes {
-		os.Remove(key)
+		wg.Add(1)
+		go func(key string, wg *sync.WaitGroup) {
+			defer wg.Done()
+			os.Remove(key)
+		}(key, &wg)
 	}
 
+	wg.Wait()
 	close(c)
 }
 
