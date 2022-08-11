@@ -12,6 +12,8 @@ import (
 	"github.com/dannywolfmx/go-tts/player"
 )
 
+var hashes = make(map[string]bool)
+
 var c = make(chan player.Player)
 
 type TTS struct{}
@@ -24,9 +26,15 @@ func (t *TTS) Run() {
 	for player := range c {
 		player.Play()
 	}
+
 }
 
 func (t *TTS) Stop() {
+	//Delete cache files
+	for key := range hashes {
+		os.Remove(key)
+	}
+
 	close(c)
 }
 
@@ -36,6 +44,7 @@ func (t *TTS) Play(lang, text string) (player.Player, error) {
 	player := player.NewNativePlayer(ctx, cancel)
 
 	hashText := hash(text)
+	hashes[hashText] = true
 
 	var err error
 	player.Buff, err = os.ReadFile(hashText)
