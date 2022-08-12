@@ -34,6 +34,7 @@ func (n *Native) Play() error {
 	// Decode file
 	decodedMp3, err := mp3.NewDecoder(reader)
 	if err != nil {
+		n.cancel()
 		return fmt.Errorf("mp3.NewDecoder failed: %s", err)
 	}
 
@@ -47,6 +48,7 @@ func (n *Native) Play() error {
 	// Remember that you should **not** create more than one context
 	otoCtx, readyChan, err := oto.NewContext(decodedMp3.SampleRate(), numOfChannels, audioBitDepth)
 	if err != nil {
+		n.cancel()
 		return fmt.Errorf("oto.NewContext failed: %s", err)
 	}
 	// It might take a bit for the hardware audio devices to be ready, so we wait on the channel.
