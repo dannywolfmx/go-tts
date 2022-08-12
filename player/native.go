@@ -3,6 +3,7 @@ package player
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -26,14 +27,14 @@ func NewNativePlayer(ctx context.Context, cancel context.CancelFunc) *Native {
 	}
 }
 
-func (n *Native) Play() {
+func (n *Native) Play() error {
 
 	reader := bytes.NewReader(n.Buff)
 
 	// Decode file
 	decodedMp3, err := mp3.NewDecoder(reader)
 	if err != nil {
-		panic("mp3.NewDecoder failed: " + err.Error())
+		return fmt.Errorf("mp3.NewDecoder failed: %s", err)
 	}
 
 	// Number of channels (aka locations) to play sounds from. Either 1 or 2.
@@ -46,7 +47,7 @@ func (n *Native) Play() {
 	// Remember that you should **not** create more than one context
 	otoCtx, readyChan, err := oto.NewContext(decodedMp3.SampleRate(), numOfChannels, audioBitDepth)
 	if err != nil {
-		panic("oto.NewContext failed: " + err.Error())
+		return fmt.Errorf("oto.NewContext failed: %s", err)
 	}
 	// It might take a bit for the hardware audio devices to be ready, so we wait on the channel.
 	<-readyChan
@@ -76,6 +77,7 @@ func (n *Native) Play() {
 		}
 	}()
 	wg.Wait()
+	return nil
 }
 
 func (n *Native) Skip() {

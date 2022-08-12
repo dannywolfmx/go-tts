@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -31,8 +32,9 @@ func (t *TTS) Run() {
 		t.Lock()
 		t.player = player
 		t.Unlock()
-
-		player.Play()
+		if err := player.Play(); err != nil {
+			log.Printf("Error: %s", player.Play())
+		}
 	}
 }
 

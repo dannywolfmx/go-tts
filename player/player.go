@@ -1,6 +1,6 @@
 package player
 
 type Player interface {
-	Play()
+	Play() error
 	Skip()
 }
