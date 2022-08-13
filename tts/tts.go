@@ -44,6 +44,7 @@ func (t *TTS) Run() {
 func (t *TTS) Stop() {
 	var wg sync.WaitGroup
 	//Delete cache files
+	t.Lock()
 	for key := range hashes {
 		wg.Add(1)
 		go func(key string, wg *sync.WaitGroup) {
@@ -51,6 +52,7 @@ func (t *TTS) Stop() {
 			os.Remove(key)
 		}(key, &wg)
 	}
+	t.Unlock()
 
 	wg.Wait()
 	close(t.playing)
