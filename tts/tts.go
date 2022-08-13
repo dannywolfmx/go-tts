@@ -67,7 +67,7 @@ func (t *TTS) Skip() {
 //Google wants a cache system to don't ban this client, so we need to add it
 func (t *TTS) Play(lang, text string) error {
 	ctx, cancel := context.WithCancel(context.Background())
-	player := player.NewNativePlayer(ctx, cancel)
+	player := player.NewNativePlayer(ctx, cancel, text)
 
 	hashText := hash(text)
 	t.Lock()
