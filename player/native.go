@@ -66,10 +66,7 @@ func (n *Native) Play() error {
 			select {
 			case <-n.ctx.Done():
 				wg.Done()
-				err = player.Close()
-				if err != nil {
-					panic("player.Close failed: " + err.Error())
-				}
+				player.Close()
 				return
 			default:
 				if player.IsPlaying() {

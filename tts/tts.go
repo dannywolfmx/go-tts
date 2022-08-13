@@ -18,20 +18,21 @@ import (
 
 var hashes = make(map[string]bool)
 
-var done = make(chan bool)
-
 type TTS struct {
 	sync.Mutex
 	player  player.Player
 	playing chan player.Player
 	lang    string
+	Done    chan bool
 }
 
 func NewTTS(lang string) *TTS {
 	playing := make(chan player.Player)
+	done := make(chan bool)
 	return &TTS{
 		playing: playing,
 		lang:    lang,
+		Done:    done,
 	}
 }
 
@@ -115,7 +116,7 @@ func (t *TTS) Playing() chan player.Player {
 func (t *TTS) Run() {
 	for p := range t.Playing() {
 		select {
-		case <-done:
+		case <-t.Done:
 			return
 		default:
 			if err := p.Play(); err != nil {
@@ -146,7 +147,7 @@ func (t *TTS) Stop() {
 	}
 	t.Unlock()
 	wg.Wait()
-	done <- true
+	t.Done <- true
 }
 
 func GetHash(text string) string {
