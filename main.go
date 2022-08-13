@@ -8,22 +8,32 @@ import (
 )
 
 func main() {
-	tts := tts.NewTTS()
+	tts := tts.NewTTS("es")
 	tts.Skip()
 
-	err := tts.Play("es", "Hola")
+	err := tts.Play("Hola")
 
 	if err != nil {
 		fmt.Printf("Error %s \n", err)
 	}
 
-	err = tts.Play("es", "Hola mundo como stan? Hola mundo como stan? Hola mundo como stan?")
+	err = tts.Play("Hola mundo como stan? Hola mundo como stan? Hola mundo como stan?")
 
 	if err != nil {
 		fmt.Printf("Error %s \n", err)
 	}
 
-	err = tts.Play("es", "aaaaaaaaaa")
+	err = tts.Play("Hola mundo como stan? Hola mundo como stan? Hola mundo como stan?")
+
+	if err != nil {
+		fmt.Printf("Error %s \n", err)
+	}
+	err = tts.Play("Hola mundo como stan? Hola mundo como stan? Hola mundo como stan?")
+
+	if err != nil {
+		fmt.Printf("Error %s \n", err)
+	}
+	err = tts.Play("aaaaaaaaaa")
 
 	if err != nil {
 		fmt.Printf("Error %s \n", err)
