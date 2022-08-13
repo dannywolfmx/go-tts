@@ -16,22 +16,25 @@ import (
 
 var hashes = make(map[string]bool)
 
-var c = make(chan player.Player)
-
 type TTS struct {
 	sync.Mutex
-	player player.Player
+	player  player.Player
+	playing chan player.Player
 }
 
 func NewTTS() *TTS {
-	return &TTS{}
+	playing := make(chan player.Player)
+	return &TTS{
+		playing: playing,
+	}
+}
+
+func (t *TTS) Playing() chan player.Player {
+	return t.playing
 }
 
 func (t *TTS) Run() {
-	for player := range c {
-		t.Lock()
-		t.player = player
-		t.Unlock()
+	for player := range t.Playing() {
 		if err := player.Play(); err != nil {
 			log.Printf("Error: %s", player.Play())
 		}
@@ -50,7 +53,7 @@ func (t *TTS) Stop() {
 	}
 
 	wg.Wait()
-	close(c)
+	close(t.playing)
 }
 
 func (t *TTS) Skip() {
@@ -75,7 +78,11 @@ func (t *TTS) Play(lang, text string) error {
 	player.Buff, err = os.ReadFile(hashText)
 	if err == nil {
 		go func() {
-			c <- player
+			t.playing <- player
+			//Important to set the player after the channel send the message
+			t.Lock()
+			t.player = player
+			t.Unlock()
 		}()
 
 		return nil
@@ -111,7 +118,12 @@ func (t *TTS) Play(lang, text string) error {
 		return errors.New("error on len buff write")
 	}
 	go func() {
-		c <- player
+		t.playing <- player
+		//Important to set the player after the channel send the message
+		t.Lock()
+		fmt.Println("Fijando")
+		t.player = player
+		t.Unlock()
 	}()
 
 	return nil
