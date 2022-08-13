@@ -17,13 +17,15 @@ type Native struct {
 	Buff   []byte
 	ctx    context.Context
 	cancel context.CancelFunc
+	text   string
 }
 
-func NewNativePlayer(ctx context.Context, cancel context.CancelFunc) *Native {
+func NewNativePlayer(ctx context.Context, cancel context.CancelFunc, text string) *Native {
 	return &Native{
 		ctx:    ctx,
 		cancel: cancel,
 		Buff:   []byte{},
+		text:   text,
 	}
 }
 
@@ -84,4 +86,8 @@ func (n *Native) Play() error {
 
 func (n *Native) Skip() {
 	n.cancel()
+}
+
+func (n *Native) GetText() string {
+	return n.text
 }
