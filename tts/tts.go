@@ -85,14 +85,15 @@ func (t *TTS) Play(text string) error {
 
 	hash := GetHash(text)
 
-	t.Lock()
-	hashes[hash] = true
-	t.Unlock()
-
 	var err error
 	if player.Buff, err = t.GetSpeech(player, text, hash); err != nil {
 		return err
 	}
+	//Save hash after GetSpeech
+
+	t.Lock()
+	hashes[hash] = true
+	t.Unlock()
 
 	t.play(player)
 
@@ -142,7 +143,7 @@ func (t *TTS) Stop() {
 		wg.Add(1)
 		go func(key string, wg *sync.WaitGroup) {
 			defer wg.Done()
-			os.Remove(key)
+			log.Printf("Error on delete %s", os.Remove(key))
 		}(key, &wg)
 	}
 	t.Unlock()
