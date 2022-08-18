@@ -143,7 +143,9 @@ func (t *TTS) Stop() {
 		wg.Add(1)
 		go func(key string, wg *sync.WaitGroup) {
 			defer wg.Done()
-			log.Printf("Error on delete %s", os.Remove(key))
+			if err := os.Remove(key); err != nil {
+				log.Printf("Error on delete %s", err)
+			}
 		}(key, &wg)
 	}
 	t.Unlock()
