@@ -32,7 +32,6 @@ func NewNativePlayer(text string) *Native {
 
 func (n *Native) Play() error {
 
-	fmt.Println("Playing")
 	reader := bytes.NewReader(n.Buff)
 
 	// Decode file
@@ -84,7 +83,6 @@ func (n *Native) Play() error {
 }
 
 func (n *Native) Stop() {
-	fmt.Println("Stoping the player")
 	n.cancel()
 }
 
