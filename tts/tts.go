@@ -16,7 +16,8 @@ import (
 	"github.com/dannywolfmx/go-tts/player"
 )
 
-var hashes = make(map[string]bool)
+var Empty struct{}
+var hashes = make(map[string]struct{})
 
 type TTS struct {
 	sync.Mutex
@@ -92,7 +93,7 @@ func (t *TTS) Play(text string) error {
 	//Save hash after GetSpeech
 
 	t.Lock()
-	hashes[hash] = true
+	hashes[hash] = Empty
 	t.Unlock()
 
 	t.play(player)
