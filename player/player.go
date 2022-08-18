@@ -2,6 +2,6 @@ package player
 
 type Player interface {
 	Play() error
-	Skip()
+	Stop()
 	GetText() string
 }

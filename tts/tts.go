@@ -1,7 +1,6 @@
 package tts
 
 import (
-	"context"
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
@@ -11,32 +10,104 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"sync"
 
 	"github.com/dannywolfmx/go-tts/player"
 )
 
-var hashes = make(map[string]bool)
+var Empty struct{}
+var hashes = make(map[string]struct{})
 
 type TTS struct {
-	sync.Mutex
-	player  player.Player
-	playing chan player.Player
-	lang    string
-	Done    chan bool
+	//The actual player in play mode
+	lang  string
+	queue []*player.Native
 }
 
 func NewTTS(lang string) *TTS {
-	playing := make(chan player.Player)
-	done := make(chan bool)
 	return &TTS{
-		playing: playing,
-		lang:    lang,
-		Done:    done,
+		lang: lang,
 	}
 }
 
-func (t *TTS) GetSpeech(p *player.Native, text, hash string) ([]byte, error) {
+func (t *TTS) Add(text string) {
+	//Add the player to the Queue
+	t.queue = append(t.queue, player.NewNativePlayer(text))
+
+	//The was empty and need to play
+	if len(t.queue) == 1 {
+		t.play()
+	}
+}
+
+func (t *TTS) Next() {
+	if len(t.queue) == 0 {
+		return
+	}
+
+	if len(t.queue) == 1 {
+		//Stop de song
+		t.queue[0].Stop()
+
+		//clear the queue
+		t.queue = nil
+		return
+	}
+
+	//Stop de song
+	t.queue[0].Stop()
+
+	//Pass the next
+	t.queue = t.queue[1:]
+
+	t.play()
+}
+
+func (t *TTS) CleanCache() {
+	for key := range hashes {
+		if err := os.Remove(key); err != nil {
+			log.Printf("On clean cache: %s \n", err)
+		}
+	}
+}
+
+func (t *TTS) play() error {
+	player := t.queue[0]
+
+	//Play the song
+	if err := play(t.lang, player); err != nil {
+		return err
+	}
+
+	//Continue with the next
+	t.Next()
+
+	return nil
+}
+
+//Google wants a cache system to don't ban this client, so we need to add it
+func play(lang string, player *player.Native) error {
+	hash := GetHash(player.GetText())
+
+	var err error
+	if player.Buff, err = GetSpeech(player.GetText(), lang, hash); err != nil {
+		return err
+	}
+
+	hashes[hash] = Empty
+
+	return player.Play()
+}
+
+func GetHash(text string) string {
+	hasher := sha1.New()
+
+	hasher.Write([]byte(text))
+	buff := hasher.Sum(nil)
+
+	return hex.EncodeToString(buff)
+}
+
+func GetSpeech(text, lang, hash string) ([]byte, error) {
 	var err error
 	buff := []byte{}
 
@@ -44,7 +115,7 @@ func (t *TTS) GetSpeech(p *player.Native, text, hash string) ([]byte, error) {
 		return buff, err
 	}
 
-	url := fmt.Sprintf("https://translate.google.com/translate_tts?ie=UTF-8&tl=%s&client=tw-ob&q=%s", t.lang, url.QueryEscape(text))
+	url := fmt.Sprintf("https://translate.google.com/translate_tts?ie=UTF-8&tl=%s&client=tw-ob&q=%s", lang, url.QueryEscape(text))
 	resp, err := http.Get(url)
 
 	if err != nil {
@@ -76,88 +147,4 @@ func (t *TTS) GetSpeech(p *player.Native, text, hash string) ([]byte, error) {
 	}
 
 	return buff, err
-}
-
-//Google wants a cache system to don't ban this client, so we need to add it
-func (t *TTS) Play(text string) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	player := player.NewNativePlayer(ctx, cancel, text)
-
-	hash := GetHash(text)
-
-	var err error
-	if player.Buff, err = t.GetSpeech(player, text, hash); err != nil {
-		return err
-	}
-	//Save hash after GetSpeech
-
-	t.Lock()
-	hashes[hash] = true
-	t.Unlock()
-
-	t.play(player)
-
-	return nil
-}
-
-func (t *TTS) play(p player.Player) {
-	go func(p player.Player) {
-		t.playing <- p
-		//Important to set the player after the channel send the message
-		t.Lock()
-		t.player = p
-		t.Unlock()
-	}(p)
-}
-
-func (t *TTS) Playing() chan player.Player {
-	return t.playing
-}
-
-func (t *TTS) Run() {
-	for p := range t.Playing() {
-		select {
-		case <-t.Done:
-			return
-		default:
-			if err := p.Play(); err != nil {
-				log.Printf("Error: %s", p.Play())
-			}
-		}
-	}
-}
-
-func (t *TTS) Skip() {
-	t.Lock()
-	defer t.Unlock()
-	if t.player != nil {
-		t.player.Skip()
-	}
-}
-
-func (t *TTS) Stop() {
-	var wg sync.WaitGroup
-	//Delete cache files
-	t.Lock()
-	for key := range hashes {
-		wg.Add(1)
-		go func(key string, wg *sync.WaitGroup) {
-			defer wg.Done()
-			if err := os.Remove(key); err != nil {
-				log.Printf("Error on delete %s", err)
-			}
-		}(key, &wg)
-	}
-	t.Unlock()
-	wg.Wait()
-	t.Done <- true
-}
-
-func GetHash(text string) string {
-	hasher := sha1.New()
-
-	hasher.Write([]byte(text))
-	buff := hasher.Sum(nil)
-
-	return hex.EncodeToString(buff)
 }
