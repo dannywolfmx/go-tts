@@ -62,6 +62,14 @@ func (t *TTS) Next() {
 	t.play()
 }
 
+func (t *TTS) Stop() {
+	if len(t.queue) == 0 {
+		return
+	}
+	t.queue[0].Stop()
+	t.queue = nil
+}
+
 func (t *TTS) CleanCache() {
 	for key := range hashes {
 		if err := os.Remove(key); err != nil {
