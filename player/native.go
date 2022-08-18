@@ -20,17 +20,19 @@ type Native struct {
 	text   string
 }
 
-func NewNativePlayer(ctx context.Context, cancel context.CancelFunc, text string) *Native {
+func NewNativePlayer(text string) *Native {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Native{
 		ctx:    ctx,
 		cancel: cancel,
-		Buff:   []byte{},
 		text:   text,
+		Buff:   []byte{},
 	}
 }
 
 func (n *Native) Play() error {
 
+	fmt.Println("Playing")
 	reader := bytes.NewReader(n.Buff)
 
 	// Decode file
@@ -81,7 +83,8 @@ func (n *Native) Play() error {
 	return nil
 }
 
-func (n *Native) Skip() {
+func (n *Native) Stop() {
+	fmt.Println("Stoping the player")
 	n.cancel()
 }
 
