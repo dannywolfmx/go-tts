@@ -19,14 +19,19 @@ var hashes = make(map[string]struct{})
 
 type TTS struct {
 	//The actual player in play mode
-	lang  string
-	queue []*player.Native
+	lang          string
+	queue         []*player.Native
+	onPlayerStart func(text string)
 }
 
 func NewTTS(lang string) *TTS {
 	return &TTS{
 		lang: lang,
 	}
+}
+
+func (t *TTS) OnPlayerStart(action func(string)) {
+	t.onPlayerStart = action
 }
 
 func (t *TTS) Add(text string) {
@@ -78,8 +83,15 @@ func (t *TTS) CleanCache() {
 	}
 }
 
+func (t *TTS) EmitEvents(p *player.Native) {
+	t.onPlayerStart(p.GetText())
+}
+
 func (t *TTS) play() error {
 	player := t.queue[0]
+
+	//EmitEvent
+	t.EmitEvents(player)
 
 	//Play the song
 	if err := play(t.lang, player); err != nil {
