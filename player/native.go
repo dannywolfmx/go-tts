@@ -18,15 +18,17 @@ type Native struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	text   string
+	otoCtx *oto.Context
 }
 
-func NewNativePlayer(text string) *Native {
+func NewNativePlayer(text string, otoCtx *oto.Context) *Native {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Native{
 		ctx:    ctx,
 		cancel: cancel,
 		text:   text,
 		Buff:   []byte{},
+		otoCtx: otoCtx,
 	}
 }
 
@@ -41,23 +43,7 @@ func (n *Native) Play() error {
 		return fmt.Errorf("mp3.NewDecoder failed: %s", err)
 	}
 
-	// Number of channels (aka locations) to play sounds from. Either 1 or 2.
-	// 1 is mono sound, and 2 is stereo (most speakers are stereo).
-	numOfChannels := 2
-
-	// Bytes used by a channel to represent one sample. Either 1 or 2 (usually 2).
-	audioBitDepth := 2
-
-	// Remember that you should **not** create more than one context
-	otoCtx, readyChan, err := oto.NewContext(decodedMp3.SampleRate(), numOfChannels, audioBitDepth)
-	if err != nil {
-		n.cancel()
-		return fmt.Errorf("oto.NewContext failed: %s", err)
-	}
-	// It might take a bit for the hardware audio devices to be ready, so we wait on the channel.
-	<-readyChan
-
-	player := otoCtx.NewPlayer(decodedMp3)
+	player := n.otoCtx.NewPlayer(decodedMp3)
 
 	player.Play()
 
@@ -66,7 +52,7 @@ func (n *Native) Play() error {
 		for {
 			select {
 			case <-n.ctx.Done():
-				wg.Done()
+				defer wg.Done()
 				player.Close()
 				return
 			default:

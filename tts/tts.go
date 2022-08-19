@@ -12,6 +12,7 @@ import (
 	"os"
 
 	"github.com/dannywolfmx/go-tts/player"
+	"github.com/hajimehoshi/oto/v2"
 )
 
 var Empty struct{}
@@ -22,11 +23,29 @@ type TTS struct {
 	lang          string
 	queue         []*player.Native
 	onPlayerStart func(text string)
+	otoCtx        *oto.Context
 }
 
 func NewTTS(lang string) *TTS {
+	// Number of channels (aka locations) to play sounds from. Either 1 or 2.
+	// 1 is mono sound, and 2 is stereo (most speakers are stereo).
+	numOfChannels := 2
+
+	// Bytes used by a channel to represent one sample. Either 1 or 2 (usually 2).
+	audioBitDepth := 2
+
+	// Remember that you should **not** create more than one context
+	otoCtx, readyChan, err := oto.NewContext(24000, numOfChannels, audioBitDepth)
+	if err != nil {
+		log.Fatalf("Error on read oto: %s", err)
+		return nil
+	}
+	// It might take a bit for the hardware audio devices to be ready, so we wait on the channel.
+	<-readyChan
+
 	return &TTS{
-		lang: lang,
+		lang:   lang,
+		otoCtx: otoCtx,
 	}
 }
 
@@ -36,7 +55,7 @@ func (t *TTS) OnPlayerStart(action func(string)) {
 
 func (t *TTS) Add(text string) {
 	//Add the player to the Queue
-	t.queue = append(t.queue, player.NewNativePlayer(text))
+	t.queue = append(t.queue, player.NewNativePlayer(text, t.otoCtx))
 
 	//The was empty and need to play
 	if len(t.queue) == 1 {
@@ -84,7 +103,9 @@ func (t *TTS) CleanCache() {
 }
 
 func (t *TTS) EmitEvents(p *player.Native) {
-	t.onPlayerStart(p.GetText())
+	if t.onPlayerStart != nil {
+		t.onPlayerStart(p.GetText())
+	}
 }
 
 func (t *TTS) play() error {
