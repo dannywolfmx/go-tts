@@ -116,7 +116,7 @@ func (t *TTS) play() {
 
 	//Play the song
 	if err := play(t.lang, player); err != nil {
-		log.Fatalf("Error reading voice: %s", err)
+		log.Printf("Error reading voice: %s", err)
 	}
 
 	//Continue with the next
