@@ -108,7 +108,7 @@ func (t *TTS) EmitEvents(p *player.Native) {
 	}
 }
 
-func (t *TTS) play() error {
+func (t *TTS) play() {
 	player := t.queue[0]
 
 	//EmitEvent
@@ -116,13 +116,11 @@ func (t *TTS) play() error {
 
 	//Play the song
 	if err := play(t.lang, player); err != nil {
-		return err
+		log.Fatalf("Error reading voice: %s", err)
 	}
 
 	//Continue with the next
 	t.Next()
-
-	return nil
 }
 
 //Google wants a cache system to don't ban this client, so we need to add it
