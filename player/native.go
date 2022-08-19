@@ -4,14 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/hajimehoshi/go-mp3"
 	"github.com/hajimehoshi/oto/v2"
 )
-
-var wg sync.WaitGroup
 
 type Native struct {
 	Buff   []byte
@@ -47,25 +44,22 @@ func (n *Native) Play() error {
 
 	player.Play()
 
-	wg.Add(1)
+	exit := make(chan error, 1)
 	go func() {
-		for {
-			select {
-			case <-n.ctx.Done():
-				defer wg.Done()
-				player.Close()
-				return
-			default:
-				if player.IsPlaying() {
-					time.Sleep(time.Millisecond)
-				} else {
-					n.cancel()
-				}
-			}
-		}
+		<-n.ctx.Done()
+		exit <- player.Close()
 	}()
-	wg.Wait()
-	return nil
+
+	for {
+		if player.IsPlaying() {
+			time.Sleep(time.Millisecond)
+		} else {
+			n.cancel()
+			break
+		}
+	}
+
+	return <-exit
 }
 
 func (n *Native) Stop() {
