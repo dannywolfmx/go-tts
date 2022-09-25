@@ -45,6 +45,4 @@ func main() {
 	}()
 
 	wg.Wait()
-
-	tts.CleanCache()
 }

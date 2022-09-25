@@ -1,22 +1,15 @@
 package tts
 
 import (
-	"crypto/sha1"
-	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 
 	"github.com/dannywolfmx/go-tts/player"
 	"github.com/hajimehoshi/oto/v2"
 )
-
-var Empty struct{}
-var hashes = make(map[string]struct{})
 
 type TTS struct {
 	//The actual player in play mode
@@ -94,14 +87,6 @@ func (t *TTS) Stop() {
 	t.queue = nil
 }
 
-func (t *TTS) CleanCache() {
-	for key := range hashes {
-		if err := os.Remove(key); err != nil {
-			log.Printf("On clean cache: %s \n", err)
-		}
-	}
-}
-
 func (t *TTS) EmitEvents(p *player.Native) {
 	if t.onPlayerStart != nil {
 		t.onPlayerStart(p.GetText())
@@ -114,8 +99,13 @@ func (t *TTS) play() {
 	//EmitEvent
 	t.EmitEvents(player)
 
+	var err error
+	if player.Buff, err = getSpeech(player.GetText(), t.lang); err != nil {
+		log.Printf("Error reading voice: %s", err)
+	}
+
 	//Play the song
-	if err := play(t.lang, player); err != nil {
+	if err := player.Play(); err != nil {
 		log.Printf("Error reading voice: %s", err)
 	}
 
@@ -123,36 +113,7 @@ func (t *TTS) play() {
 	t.Next()
 }
 
-//Google wants a cache system to don't ban this client, so we need to add it
-func play(lang string, player *player.Native) error {
-	hash := GetHash(player.GetText())
-
-	var err error
-	if player.Buff, err = GetSpeech(player.GetText(), lang, hash); err != nil {
-		return err
-	}
-
-	hashes[hash] = Empty
-
-	return player.Play()
-}
-
-func GetHash(text string) string {
-	hasher := sha1.New()
-
-	hasher.Write([]byte(text))
-	buff := hasher.Sum(nil)
-
-	return hex.EncodeToString(buff)
-}
-
-func GetSpeech(text, lang, hash string) ([]byte, error) {
-	var err error
-	buff := []byte{}
-
-	if buff, err = os.ReadFile(hash); err == nil {
-		return buff, err
-	}
+func getSpeech(text, lang string) ([]byte, error) {
 
 	url := fmt.Sprintf("https://translate.google.com/translate_tts?ie=UTF-8&tl=%s&client=tw-ob&q=%s", lang, url.QueryEscape(text))
 	resp, err := http.Get(url)
@@ -162,28 +123,5 @@ func GetSpeech(text, lang, hash string) ([]byte, error) {
 	}
 
 	defer resp.Body.Close()
-	buff, err = io.ReadAll(resp.Body)
-
-	if err != nil {
-		return nil, err
-	}
-
-	file, err := os.Create(hash)
-	defer file.Close()
-
-	if err != nil {
-		return buff, err
-	}
-
-	n, err := file.Write(buff)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if len(buff) != n {
-		return buff, errors.New("error on len buff write")
-	}
-
-	return buff, err
+	return io.ReadAll(resp.Body)
 }
