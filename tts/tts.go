@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"sync"
 
 	"github.com/dannywolfmx/go-tts/player"
 	"github.com/hajimehoshi/oto/v2"
@@ -19,6 +20,8 @@ type TTS struct {
 	onPlayerEnds  func(text string)
 	onPlayerStart func(text string)
 	otoCtx        *oto.Context
+	isNextActive  bool
+	mu            sync.Mutex
 }
 
 func NewTTS(lang string) *TTS {
@@ -46,26 +49,36 @@ func NewTTS(lang string) *TTS {
 
 func (t *TTS) Add(text string) {
 	//Add the player to the Queue
+	t.mu.Lock()
 	t.queue = append(t.queue, player.NewNativePlayer(text, t.otoCtx))
+	t.mu.Unlock()
 
 	//Just autoplay when the queue is 1, to prevent
 	// play multiples times, at the same time
 	if t.autoplay && t.QueueLen() == 1 {
-		t.play()
+		t.Next()
 	}
 }
 
 func (t *TTS) Next() {
+	t.mu.Lock()
+	fmt.Println("Next")
+	fmt.Println("Lock")
+
 	if t.QueueLen() == 0 {
+		t.mu.Unlock()
 		return
 	}
 
+	t.isNextActive = true
 	if t.QueueLen() == 1 {
 		//Stop de song
 		t.queue[0].Stop()
 
 		//clear the queue
 		t.queue = nil
+		t.mu.Unlock()
+		fmt.Println("UNlock")
 		return
 	}
 
@@ -74,8 +87,12 @@ func (t *TTS) Next() {
 
 	//Pass the next
 	t.queue = t.queue[1:]
+	player := t.queue[0]
+	t.mu.Unlock()
 
-	t.play()
+	fmt.Println("UNlock")
+
+	t.play(player)
 }
 
 func (t *TTS) OnPlayerEnds(action func(string)) {
@@ -98,13 +115,12 @@ func (t *TTS) Play() {
 	t.autoplay = true
 
 	if t.QueueLen() > 0 {
-		t.play()
+		t.Next()
 	}
 }
 
-func (t *TTS) play() {
-	player := t.queue[0]
-
+// [0, 1, 2]
+func (t *TTS) play(player *player.Native) {
 	//EmitEvent
 	if t.onPlayerStart != nil {
 		t.onPlayerStart(player.GetText())
@@ -123,7 +139,14 @@ func (t *TTS) play() {
 	if t.onPlayerEnds != nil {
 		t.onPlayerEnds(player.GetText())
 	}
-	//Continue with the next
+
+	t.mu.Lock()
+	if t.isNextActive {
+		t.isNextActive = false
+		t.mu.Unlock()
+		return
+	}
+	t.mu.Unlock()
 	t.Next()
 }
 
@@ -132,11 +155,13 @@ func (t *TTS) QueueLen() int {
 }
 
 func (t *TTS) Stop() {
+	t.mu.Lock()
 	if t.QueueLen() == 0 {
 		return
 	}
 	t.queue[0].Stop()
 	t.queue = nil
+	t.mu.Unlock()
 }
 
 func getSpeech(text, lang string) ([]byte, error) {

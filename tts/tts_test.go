@@ -40,6 +40,47 @@ func TestPause(t *testing.T) {
 }
 
 // TestPlay is a blocking thread test
+func TestNext(t *testing.T) {
+	voice := NewTTS(lang)
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func(t *testing.T) {
+		time.Sleep(2 * time.Second)
+		voice.Next()
+		wg.Done()
+	}(t)
+
+	wg.Add(1)
+	go func(t *testing.T) {
+		time.Sleep(3 * time.Second)
+		voice.Next()
+		wg.Done()
+	}(t)
+
+	wg.Add(1)
+	go func(t *testing.T) {
+		time.Sleep(4 * time.Second)
+		voice.Next()
+		wg.Done()
+	}(t)
+
+	wg.Add(1)
+	go func(t *testing.T) {
+		time.Sleep(5 * time.Second)
+		voice.Next()
+		wg.Done()
+	}(t)
+
+	voice.Add("test prueba 1, test prueba 1, test prueba 1")
+	voice.Add("test prueba 2, test prueba 2, test prueba 2")
+	voice.Add("test prueba 3, test prueba 3, test prueba 3")
+	voice.Play()
+
+	wg.Wait()
+}
+
+// TestPlay is a blocking thread test
 func TestPlay(t *testing.T) {
 	voice := NewTTS(lang)
 
