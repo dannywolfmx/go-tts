@@ -48,7 +48,9 @@ func (t *TTS) Add(text string) {
 	//Add the player to the Queue
 	t.queue = append(t.queue, player.NewNativePlayer(text, t.otoCtx))
 
-	if t.autoplay {
+	//Just autoplay when the queue is 1, to prevent
+	// play multiples times, at the same time
+	if t.autoplay && t.QueueLen() == 1 {
 		t.play()
 	}
 }
@@ -85,6 +87,7 @@ func (t *TTS) OnPlayerStart(action func(string)) {
 }
 
 func (t *TTS) Pause() {
+	t.autoplay = false
 	if t.QueueLen() > 0 {
 		//Stop de song
 		t.queue[0].Pause()
