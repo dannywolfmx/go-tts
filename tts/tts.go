@@ -84,18 +84,18 @@ func (t *TTS) OnPlayerStart(action func(string)) {
 	t.onPlayerStart = action
 }
 
-func (t *TTS) Play() {
-	t.autoplay = true
-	//The was empty and need to play
-	if t.QueueLen() == 1 {
-		t.play()
-	}
-}
-
 func (t *TTS) Pause() {
 	if t.QueueLen() > 0 {
 		//Stop de song
 		t.queue[0].Pause()
+	}
+}
+
+func (t *TTS) Play() {
+	t.autoplay = true
+
+	if t.QueueLen() > 0 {
+		t.play()
 	}
 }
 

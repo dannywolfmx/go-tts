@@ -44,9 +44,11 @@ func TestPlay(t *testing.T) {
 	voice := NewTTS(lang)
 
 	voice.Add("test prueba")
+	voice.Add("test prueba")
+	voice.Add("test prueba")
 	l := voice.QueueLen()
-	if l != 1 {
-		t.Fatalf("Queue is not 1, actual len is %d", l)
+	if l != 3 {
+		t.Fatalf("Queue is not 3, actual len is %d", l)
 	}
 
 	voice.Play()
