@@ -1,6 +1,7 @@
 package tts
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -9,8 +10,12 @@ import (
 	"sync"
 
 	"github.com/dannywolfmx/go-tts/player"
+	"github.com/hajimehoshi/go-mp3"
 	"github.com/hajimehoshi/oto/v2"
 )
+
+var queue = make(chan *player.Native)
+var actualPlaying *player.Native
 
 type TTS struct {
 	//The actual player in play mode
@@ -47,52 +52,46 @@ func NewTTS(lang string) *TTS {
 	}
 }
 
-func (t *TTS) Add(text string) {
-	//Add the player to the Queue
-	t.mu.Lock()
-	t.queue = append(t.queue, player.NewNativePlayer(text, t.otoCtx))
-	t.mu.Unlock()
+func (t *TTS) Add(text string) error {
 
-	//Just autoplay when the queue is 1, to prevent
-	// play multiples times, at the same time
-	if t.autoplay && t.QueueLen() == 1 {
-		t.Next()
+	otoPlayer, err := getVoiceText(text, t.lang, t.otoCtx)
+	if err != nil {
+		return err
 	}
+
+	queue <- player.NewNativePlayer(text, otoPlayer)
+
+	return nil
+}
+
+func (t *TTS) Continue() {
+	t.otoCtx.Resume()
+}
+
+func getVoiceText(text, lang string, ctx *oto.Context) (oto.Player, error) {
+	buff, err := getSpeech(text, lang)
+	if err != nil {
+		return nil, fmt.Errorf("error reading voice: %s", err)
+	}
+
+	reader := bytes.NewReader(buff)
+
+	// Decode file
+	decoder, err := mp3.NewDecoder(reader)
+
+	if err != nil {
+		return nil, fmt.Errorf("mp3.NewDecoder failed: %s", err)
+	}
+
+	return ctx.NewPlayer(decoder), nil
 }
 
 func (t *TTS) Next() {
 	t.mu.Lock()
-	fmt.Println("Next")
-	fmt.Println("Lock")
-
-	if t.QueueLen() == 0 {
-		t.mu.Unlock()
-		return
+	defer t.mu.Unlock()
+	if actualPlaying != nil {
+		actualPlaying.Stop()
 	}
-
-	t.isNextActive = true
-	if t.QueueLen() == 1 {
-		//Stop de song
-		t.queue[0].Stop()
-
-		//clear the queue
-		t.queue = nil
-		t.mu.Unlock()
-		fmt.Println("UNlock")
-		return
-	}
-
-	//Stop de song
-	t.queue[0].Stop()
-
-	//Pass the next
-	t.queue = t.queue[1:]
-	player := t.queue[0]
-	t.mu.Unlock()
-
-	fmt.Println("UNlock")
-
-	t.play(player)
 }
 
 func (t *TTS) OnPlayerEnds(action func(string)) {
@@ -104,64 +103,36 @@ func (t *TTS) OnPlayerStart(action func(string)) {
 }
 
 func (t *TTS) Pause() {
-	t.autoplay = false
-	if t.QueueLen() > 0 {
-		//Stop de song
-		t.queue[0].Pause()
-	}
+	t.otoCtx.Suspend()
 }
 
 func (t *TTS) Play() {
-	t.autoplay = true
-
-	if t.QueueLen() > 0 {
-		t.Next()
-	}
+	go play(t)
 }
 
-// [0, 1, 2]
-func (t *TTS) play(player *player.Native) {
-	//EmitEvent
-	if t.onPlayerStart != nil {
-		t.onPlayerStart(player.GetText())
-	}
-
-	var err error
-	if player.Buff, err = getSpeech(player.GetText(), t.lang); err != nil {
-		log.Printf("Error reading voice: %s", err)
-	}
-
-	//Play the song
-	if err := player.Play(); err != nil {
-		log.Printf("Error reading voice: %s", err)
-	}
-
-	if t.onPlayerEnds != nil {
-		t.onPlayerEnds(player.GetText())
-	}
-
-	t.mu.Lock()
-	if t.isNextActive {
-		t.isNextActive = false
+func play(t *TTS) {
+	for player := range queue {
+		t.mu.Lock()
+		actualPlaying = player
 		t.mu.Unlock()
-		return
-	}
-	t.mu.Unlock()
-	t.Next()
-}
+		//EmitEvent
+		if t.onPlayerStart != nil {
+			t.onPlayerStart(player.GetText())
+		}
 
-func (t *TTS) QueueLen() int {
-	return len(t.queue)
+		//Play the song
+		if err := player.Play(); err != nil {
+			log.Printf("Error reading voice: %s", err)
+		}
+
+		if t.onPlayerEnds != nil {
+			t.onPlayerEnds(player.GetText())
+		}
+	}
 }
 
 func (t *TTS) Stop() {
-	t.mu.Lock()
-	if t.QueueLen() == 0 {
-		return
-	}
-	t.queue[0].Stop()
-	t.queue = nil
-	t.mu.Unlock()
+
 }
 
 func getSpeech(text, lang string) ([]byte, error) {
