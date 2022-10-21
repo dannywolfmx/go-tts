@@ -59,7 +59,6 @@ func (n *Native) Stop() {
 	if n.player != nil {
 		n.player.Close()
 	}
-	fmt.Println("Pausado")
 }
 
 func (n *Native) GetText() string {

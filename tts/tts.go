@@ -54,7 +54,6 @@ func (t *TTS) Add(text string) {
 }
 
 func (t *TTS) Next() {
-	fmt.Println("Next")
 	if t.QueueLen() == 0 {
 		return
 	}
