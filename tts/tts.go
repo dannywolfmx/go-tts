@@ -13,8 +13,10 @@ import (
 
 type TTS struct {
 	//The actual player in play mode
+	autoplay      bool
 	lang          string
 	queue         []*player.Native
+	onPlayerEnds  func(text string)
 	onPlayerStart func(text string)
 	otoCtx        *oto.Context
 }
@@ -42,26 +44,22 @@ func NewTTS(lang string) *TTS {
 	}
 }
 
-func (t *TTS) OnPlayerStart(action func(string)) {
-	t.onPlayerStart = action
-}
-
 func (t *TTS) Add(text string) {
 	//Add the player to the Queue
 	t.queue = append(t.queue, player.NewNativePlayer(text, t.otoCtx))
 
-	//The was empty and need to play
-	if len(t.queue) == 1 {
+	if t.autoplay {
 		t.play()
 	}
 }
 
 func (t *TTS) Next() {
-	if len(t.queue) == 0 {
+	fmt.Println("Next")
+	if t.QueueLen() == 0 {
 		return
 	}
 
-	if len(t.queue) == 1 {
+	if t.QueueLen() == 1 {
 		//Stop de song
 		t.queue[0].Stop()
 
@@ -79,17 +77,26 @@ func (t *TTS) Next() {
 	t.play()
 }
 
-func (t *TTS) Stop() {
-	if len(t.queue) == 0 {
-		return
-	}
-	t.queue[0].Stop()
-	t.queue = nil
+func (t *TTS) OnPlayerEnds(action func(string)) {
+	t.onPlayerEnds = action
 }
 
-func (t *TTS) EmitEvents(p *player.Native) {
-	if t.onPlayerStart != nil {
-		t.onPlayerStart(p.GetText())
+func (t *TTS) OnPlayerStart(action func(string)) {
+	t.onPlayerStart = action
+}
+
+func (t *TTS) Play() {
+	t.autoplay = true
+	//The was empty and need to play
+	if t.QueueLen() == 1 {
+		t.play()
+	}
+}
+
+func (t *TTS) Pause() {
+	if t.QueueLen() > 0 {
+		//Stop de song
+		t.queue[0].Pause()
 	}
 }
 
@@ -97,7 +104,9 @@ func (t *TTS) play() {
 	player := t.queue[0]
 
 	//EmitEvent
-	t.EmitEvents(player)
+	if t.onPlayerStart != nil {
+		t.onPlayerStart(player.GetText())
+	}
 
 	var err error
 	if player.Buff, err = getSpeech(player.GetText(), t.lang); err != nil {
@@ -109,8 +118,23 @@ func (t *TTS) play() {
 		log.Printf("Error reading voice: %s", err)
 	}
 
+	if t.onPlayerEnds != nil {
+		t.onPlayerEnds(player.GetText())
+	}
 	//Continue with the next
 	t.Next()
+}
+
+func (t *TTS) QueueLen() int {
+	return len(t.queue)
+}
+
+func (t *TTS) Stop() {
+	if t.QueueLen() == 0 {
+		return
+	}
+	t.queue[0].Stop()
+	t.queue = nil
 }
 
 func getSpeech(text, lang string) ([]byte, error) {

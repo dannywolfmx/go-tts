@@ -2,7 +2,6 @@ package player
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"time"
 
@@ -12,17 +11,14 @@ import (
 
 type Native struct {
 	Buff   []byte
-	ctx    context.Context
-	cancel context.CancelFunc
 	text   string
 	otoCtx *oto.Context
+	player oto.Player
+	pause  bool
 }
 
 func NewNativePlayer(text string, otoCtx *oto.Context) *Native {
-	ctx, cancel := context.WithCancel(context.Background())
 	return &Native{
-		ctx:    ctx,
-		cancel: cancel,
 		text:   text,
 		Buff:   []byte{},
 		otoCtx: otoCtx,
@@ -30,40 +26,40 @@ func NewNativePlayer(text string, otoCtx *oto.Context) *Native {
 }
 
 func (n *Native) Play() error {
+	n.pause = false
+	if n.player == nil {
+		reader := bytes.NewReader(n.Buff)
 
-	reader := bytes.NewReader(n.Buff)
-
-	// Decode file
-	decodedMp3, err := mp3.NewDecoder(reader)
-	if err != nil {
-		n.cancel()
-		return fmt.Errorf("mp3.NewDecoder failed: %s", err)
-	}
-
-	player := n.otoCtx.NewPlayer(decodedMp3)
-
-	player.Play()
-
-	exit := make(chan error, 1)
-	go func() {
-		<-n.ctx.Done()
-		exit <- player.Close()
-	}()
-
-	for {
-		if player.IsPlaying() {
-			time.Sleep(time.Millisecond)
-		} else {
-			n.cancel()
-			break
+		// Decode file
+		decodedMp3, err := mp3.NewDecoder(reader)
+		if err != nil {
+			return fmt.Errorf("mp3.NewDecoder failed: %s", err)
 		}
+
+		n.player = n.otoCtx.NewPlayer(decodedMp3)
 	}
 
-	return <-exit
+	n.player.Play()
+
+	for n.player.IsPlaying() || n.pause {
+		time.Sleep(time.Millisecond)
+	}
+
+	return n.player.Close()
+}
+
+func (n *Native) Pause() {
+	if n.player != nil {
+		n.pause = true
+		n.player.Pause()
+	}
 }
 
 func (n *Native) Stop() {
-	n.cancel()
+	if n.player != nil {
+		n.player.Close()
+	}
+	fmt.Println("Pausado")
 }
 
 func (n *Native) GetText() string {
