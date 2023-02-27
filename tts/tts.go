@@ -29,7 +29,7 @@ type TTS struct {
 	mu            sync.Mutex
 }
 
-func NewTTS(lang string) *TTS {
+func NewTTS(lang string, sampleRate int) *TTS {
 	// Number of channels (aka locations) to play sounds from. Either 1 or 2.
 	// 1 is mono sound, and 2 is stereo (most speakers are stereo).
 	numOfChannels := 2
@@ -38,7 +38,8 @@ func NewTTS(lang string) *TTS {
 	audioBitDepth := 2
 
 	// Remember that you should **not** create more than one context
-	otoCtx, readyChan, err := oto.NewContext(24000, numOfChannels, audioBitDepth)
+	otoCtx, readyChan, err := oto.NewContext(sampleRate, numOfChannels, audioBitDepth)
+
 	if err != nil {
 		log.Fatalf("Error on read oto: %s", err)
 		return nil
